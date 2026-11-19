@@ -25,7 +25,7 @@ label{font-size:14px;color:var(--mut)}
 </style></head><body>
 <div class="card" id="tap" style="cursor:pointer;min-height:200px"><div id="num">Sin página</div><ul id="items"><li class="empty">Usa el control remoto…</li></ul></div>
 
-<div class="card"><div class="pad">
+<div class="card"><button class="sm" id="act" style="width:100%;margin-bottom:10px;font-weight:600">▶ Activar control remoto (toca aquí primero)</button><div class="pad">
 <button id="bU" style="grid-area:up">▲<br>1 página<br>por toque</button>
 <button id="bL" style="grid-area:left">◀<br>1 toque: repetir<br>2 toques: reiniciar</button>
 <button id="bR" style="grid-area:right">▶<br>+10 páginas</button>
@@ -104,7 +104,7 @@ function buildCfg(){
   const w=document.createElement("div");w.style.marginTop="10px";w.innerHTML="<label>"+SI[s]+" "+SN[s]+"</label>";
   const sel=document.createElement("select");
   Object.keys(ACTS).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=ACTS[k][0];if(k===D.btns[s].act)o.selected=true;sel.appendChild(o)});
-  sel.onchange=()=>{D.btns[s].act=sel.value;save();labels()};
+  sel.onchange=()=>{D.btns[s].act=sel.value;save();labels();sel.blur()};
   const b=document.createElement("button");b.className="sm";b.style.width="100%";
   b.textContent=learn===s?"Pulsa ahora la tecla del control…":"Asignar tecla (actual: "+D.btns[s].id+")";
   b.onclick=()=>{learn=learn===s?null:s;buildCfg()};
@@ -116,7 +116,7 @@ SL.forEach(s=>{$("b"+s).onclick=()=>press(s)});
 document.addEventListener("keydown",e=>{
  const id=keyId(e);
  if(learn){e.preventDefault();D.btns[learn].id=id;save();learn=null;buildCfg();$("lastkey").textContent="Tecla asignada: "+id;return}
- const t=e.target&&e.target.tagName;if(t==="INPUT"||t==="TEXTAREA"||t==="SELECT")return;
+ const t=e.target&&e.target.tagName;if((t==="INPUT"&&e.target.type==="text")||t==="TEXTAREA")return;
  $("lastkey").textContent="Última tecla detectada: "+id+((e.key&&e.key!==id)?" ("+e.key+")":"");
  if(e.repeat)return;
  for(const s of SL)if(D.btns[s].id===id){e.preventDefault();press(s);return}
@@ -131,12 +131,34 @@ function buildEd(){
   $("fields").appendChild(i);
  }
 }
-$("sel").onchange=e=>{ed=+e.target.value;buildEd()};
+$("sel").onchange=e=>{ed=+e.target.value;buildEd();e.target.blur()};
 $("ep").onclick=()=>{ed=ed>1?ed-1:N;buildEd()};
 $("en").onclick=()=>{ed=ed<N?ed+1:1;buildEd()};
 $("auto").checked=D.auto;$("mode").value=D.mode;
 $("auto").onchange=e=>{D.auto=e.target.checked;save()};
-$("mode").onchange=e=>{D.mode=e.target.value;rev=false;save();render()};
+$("mode").onchange=e=>{D.mode=e.target.value;rev=false;save();render();e.target.blur()};
 $("tap").onclick=()=>{if(D.mode==="touch"&&cur){rev=!rev;render()}};
+function mediaKey(name){
+ const id="media:"+name;
+ if(learn){D.btns[learn].id=id;save();learn=null;buildCfg();$("lastkey").textContent="Tecla asignada: "+id;return}
+ $("lastkey").textContent="Última tecla detectada: "+id;
+ for(const s of SL)if(D.btns[s].id===id){press(s);return}
+}
+function silentWav(){const sr=8000,n=sr;const b=new Uint8Array(44+n);const dv=new DataView(b.buffer);const w=(o,s)=>{for(let i=0;i<s.length;i++)b[o+i]=s.charCodeAt(i)};w(0,"RIFF");dv.setUint32(4,36+n,true);w(8,"WAVEfmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);dv.setUint32(24,sr,true);dv.setUint32(28,sr,true);dv.setUint16(32,1,true);dv.setUint16(34,8,true);w(36,"data");dv.setUint32(40,n,true);b.fill(128,44);let s="";for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return "data:audio/wav;base64,"+btoa(s)}
+let aud=null;
+function activate(){
+ try{
+  if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}
+  if(!aud){aud=new Audio(silentWav());aud.loop=true}
+  const p=aud.play();if(p&&p.catch)p.catch(()=>{});
+  if("mediaSession" in navigator){
+   navigator.mediaSession.metadata=new MediaMetadata({title:"Blog 22 páginas"});
+   navigator.mediaSession.playbackState="playing";
+   ["play","pause","previoustrack","nexttrack","seekbackward","seekforward","stop"].forEach(a=>{try{navigator.mediaSession.setActionHandler(a,()=>{mediaKey(a);if(aud&&aud.paused)aud.play().catch(()=>{});navigator.mediaSession.playbackState="playing"})}catch(e){}});
+  }
+  $("act").textContent="✅ Control remoto activo (toca para reactivar)";
+ }catch(e){$("act").textContent="No se pudo activar, intenta de nuevo"}
+}
+$("act").onclick=activate;
 buildEd();render();labels();buildCfg();
 </script></body></html>
