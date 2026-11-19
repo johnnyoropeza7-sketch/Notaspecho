@@ -13,80 +13,83 @@
 #items li{font-size:26px;padding:8px 0;border-bottom:1px solid var(--bd);word-break:break-word}
 #items li:last-child{border:0}
 .empty{color:var(--mut);font-size:18px!important}
-#mic{width:100%;padding:14px;font-size:17px;border:0;border-radius:12px;background:var(--ac);color:#fff;font-weight:600}
-#mic.on{outline:3px solid var(--fg)}
-#heard{font-size:13px;color:var(--mut);min-height:18px;margin-top:6px}
-.remote{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.remote button{padding:18px 8px;font-size:16px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-weight:600}
-.remote button:active{background:var(--ac);color:#fff}
+.pad{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-areas:". up ." "left . right" ". down .";gap:10px}
+.pad button{padding:22px 4px;font-size:15px;border-radius:14px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-weight:600;line-height:1.3}
+.pad button:active,.pad button.k{background:var(--ac);color:#fff}
+#fb{text-align:center;font-size:13px;color:var(--mut);min-height:18px;margin-top:8px}
 details summary{font-weight:600;cursor:pointer}
 input[type=text],select{width:100%;padding:10px;margin:5px 0;font-size:16px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
 .row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
 .sm{padding:10px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-size:15px}
 label{font-size:14px;color:var(--mut)}
 </style></head><body>
-<div class="card" id="tap" style="cursor:pointer;min-height:200px"><div id="num">Sin página</div><ul id="items"><li class="empty">Di el número de página…</li></ul></div>
-<button id="mic">🎤 Activar escucha</button><div id="heard"></div>
-<div class="remote card" style="margin-top:12px" id="remote"></div>
+<div class="card" id="tap" style="cursor:pointer;min-height:200px"><div id="num">Sin página</div><ul id="items"><li class="empty">Usa el control remoto…</li></ul></div>
+
+<div class="card"><div class="pad">
+<button id="bU" style="grid-area:up">▲<br>1 página<br>por toque</button>
+<button id="bL" style="grid-area:left">◀<br>1 toque: repetir<br>2 toques: reiniciar</button>
+<button id="bR" style="grid-area:right">▶<br>+10 páginas</button>
+<button id="bD" style="grid-area:down">▼<br>+5 páginas</button>
+</div><div id="fb"></div></div>
 
 <div class="card"><details open><summary>✏️ Editar página</summary>
 <div class="row" style="margin:10px 0"><button class="sm" id="ep">◀</button><select id="sel"></select><button class="sm" id="en">▶</button></div>
 <div id="fields"></div></details></div>
 
-<div class="card"><details><summary>⚙️ Control remoto y ajustes</summary>
-<div id="cfg"></div>
-<label><input type="checkbox" id="auto" checked> Leer en voz alta al abrir página</label><br>
+<div class="card"><details><summary>⚙️ Ajustes</summary>
 <label>Pantalla</label><select id="mode"><option value="touch">Mostrar al tocar la pantalla</option><option value="always">Mostrar siempre</option><option value="hide">Oculta (solo audio)</option></select>
+<label><input type="checkbox" id="auto" checked> Decir en el auricular el número de página al llegar</label>
 </details></div>
 
 <script>
 const N=22,S=4;
-const ACTS={repeat:"🔊 Repetir audio",restart:"⟲ Reiniciar",prev:"◀ Anterior (1)",next:"Siguiente (1) ▶",next5:"+5 páginas ⏩",next10:"+10 páginas ⏭",prev5:"−5 páginas ⏪",prev10:"−10 páginas ⏮"};
-const DBTN=["repeat","restart","prev","next","next5","next10"];
-const DKW={repeat:"repetir",restart:"reiniciar",prev:"anterior",next:"siguiente",next5:"",next10:"",prev5:"",prev10:""};
-let D={pages:Array.from({length:N},()=>Array(S).fill("")),btn:DBTN.slice(),auto:true,mode:"touch",kw:Object.assign({},DKW),keys:Array(N).fill("")};
+let D={pages:Array.from({length:N},()=>Array(S).fill("")),auto:true,mode:"touch"};
 try{const s=localStorage.getItem("blog22");if(s){const o=JSON.parse(s);if(o&&o.pages&&o.pages.length===N)D=Object.assign(D,o)}}catch(e){}
-while(D.btn.length<6)D.btn.push(DBTN[D.btn.length]);
-D.kw=Object.assign({},DKW,D.kw||{});if(!D.keys||D.keys.length!==N)D.keys=Array(N).fill("");if(!["always","touch","hide"].includes(D.mode))D.mode="touch";
+if(!["always","touch","hide"].includes(D.mode))D.mode="touch";
 const save=()=>{try{localStorage.setItem("blog22",JSON.stringify(D))}catch(e){}};
 let cur=0,ed=1,rev=false;const $=i=>document.getElementById(i);
 function render(){
  $("num").textContent=cur?("Página "+cur):"Sin página";
  const ul=$("items");ul.innerHTML="";
- if(!cur){ul.innerHTML='<li class="empty">Di el número de página…</li>';return}
+ if(!cur){ul.innerHTML='<li class="empty">Usa el control remoto…</li>';return}
  if(D.mode==="hide"||(D.mode==="touch"&&!rev)){ul.innerHTML='<li class="empty">'+(D.mode==="touch"?"Toca la pantalla para ver":"(contenido oculto)")+'</li>';return}
  const it=D.pages[cur-1].filter(x=>x.trim());
  if(!it.length)ul.innerHTML='<li class="empty">Página en blanco</li>';
  it.forEach(t=>{const l=document.createElement("li");l.textContent=t;ul.appendChild(l)});
 }
-function speak(){
- if(!cur||!window.speechSynthesis)return;
+function say(t){
+ if(!window.speechSynthesis)return;
  speechSynthesis.cancel();
- const it=D.pages[cur-1].filter(x=>x.trim());
- const u=new SpeechSynthesisUtterance("Página "+cur+". "+(it.length?it.join(". "):"En blanco"));
- u.lang="es-ES";speechSynthesis.speak(u);
+ const u=new SpeechSynthesisUtterance(t);u.lang="es-ES";speechSynthesis.speak(u);
 }
-function go(n,say=true){if(n<1||n>N)return;cur=n;ed=n;rev=false;render();buildEd();if(say&&D.auto)speak()}
-function act(a){
- if(a==="repeat")speak();
- else if(a==="restart"){cur=0;rev=false;if(window.speechSynthesis)speechSynthesis.cancel();render()}
- else{const m=/^(next|prev)(\d*)$/.exec(a);if(m){const st=(m[1]==="next"?1:-1)*(+m[2]||1);const b=cur||(st<0?1:0);go(((b-1+st)%N+N)%N+1)}}
+function items(){return D.pages[cur-1].filter(x=>x.trim())}
+function repeat(){
+ if(!cur){say("Sin página");return}
+ const it=items();
+ say("Página "+cur+". "+(it.length?it.join(". "):"En blanco"));
 }
-function buildRemote(){
- $("remote").innerHTML="";
- D.btn.forEach(a=>{const b=document.createElement("button");b.textContent=ACTS[a];b.onclick=()=>act(a);$("remote").appendChild(b)});
- $("cfg").innerHTML="";
- D.btn.forEach((a,i)=>{
-  const w=document.createElement("div");w.innerHTML="<label>Botón "+(i+1)+"</label>";
-  const s=document.createElement("select");
-  Object.keys(ACTS).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=ACTS[k];if(k===a)o.selected=true;s.appendChild(o)});
-  s.onchange=()=>{D.btn[i]=s.value;save();buildRemote()};
-  w.appendChild(s);$("cfg").appendChild(w);
- });
- const h=document.createElement("div");h.innerHTML="<hr><b>Palabras de comando por voz</b><br><label>Déjalas vacías para no usarlas</label>";
- Object.keys(ACTS).forEach(k=>{const i=document.createElement("input");i.type="text";i.placeholder=ACTS[k];i.value=D.kw[k]||"";i.oninput=()=>{D.kw[k]=i.value;save()};h.appendChild(i)});
- $("cfg").appendChild(h);
+function go(n){cur=n;ed=n;rev=false;render();buildEd();if(D.auto)say("Página "+n)}
+function step(k){go(((cur+k-1)%N+N)%N+1)}
+function restart(){cur=0;rev=false;if(window.speechSynthesis)speechSynthesis.cancel();render();say("Aplicación reiniciada")}
+function fb(t){$("fb").textContent=t}
+let tU=0,uT=0,tL=0,lT=0;
+function tapUp(){
+ tU++;clearTimeout(uT);fb("Toques: "+tU);
+ uT=setTimeout(()=>{const c=tU;tU=0;fb("");step(c)},650);
 }
+function tapLeft(){
+ tL++;clearTimeout(lT);fb("Toques: "+tL);
+ lT=setTimeout(()=>{const c=tL;tL=0;fb("");if(c>=2)restart();else repeat()},550);
+}
+function tapRight(){step(10)}
+function tapDown(){step(5)}
+$("bU").onclick=tapUp;$("bL").onclick=tapLeft;$("bR").onclick=tapRight;$("bD").onclick=tapDown;
+document.addEventListener("keydown",e=>{
+ if(e.repeat)return;
+ const t=e.target&&e.target.tagName;if(t==="INPUT"||t==="SELECT"||t==="TEXTAREA")return;
+ const m={ArrowUp:tapUp,ArrowLeft:tapLeft,ArrowRight:tapRight,ArrowDown:tapDown}[e.key];
+ if(m){e.preventDefault();m()}
+});
 function buildEd(){
  const sel=$("sel");
  if(!sel.options.length)for(let i=1;i<=N;i++){const o=document.createElement("option");o.value=i;o.textContent="Página "+i;sel.appendChild(o)}
@@ -96,43 +99,13 @@ function buildEd(){
   i.oninput=()=>{D.pages[ed-1][j]=i.value;save();if(cur===ed)render()};
   $("fields").appendChild(i);
  }
- const k=document.createElement("input");k.type="text";k.placeholder="🔑 Palabra clave para abrir esta página (opcional)";k.value=D.keys[ed-1]||"";k.oninput=()=>{D.keys[ed-1]=k.value;save()};
- $("fields").appendChild(k);
 }
 $("sel").onchange=e=>{ed=+e.target.value;buildEd()};
 $("ep").onclick=()=>{ed=ed>1?ed-1:N;buildEd()};
 $("en").onclick=()=>{ed=ed<N?ed+1:1;buildEd()};
-$("auto").checked=D.auto;$("mode").value=D.mode;$("tap").onclick=()=>{if(D.mode==="touch"&&cur){rev=!rev;render()}};
+$("auto").checked=D.auto;$("mode").value=D.mode;
 $("auto").onchange=e=>{D.auto=e.target.checked;save()};
 $("mode").onchange=e=>{D.mode=e.target.value;rev=false;save();render()};
-
-const W={uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintiun:21,veintiuna:21,veintidos:22};
-const keys=Object.keys(W).sort((a,b)=>b.length-a.length);
-const norm=t=>t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
-function parse(t){
- t=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/veinte y /g,"veinti");
- const m=t.match(/\d+/);if(m)return +m[0];
- for(const k of keys)if(new RegExp("\\b"+k+"\\b").test(t))return W[k];
- return 0;
-}
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let rec=null,on=false;
-$("mic").onclick=()=>{
- if(!SR){$("heard").textContent="Este navegador no admite reconocimiento de voz (usa Safari o Chrome).";return}
- if(on){on=false;rec&&rec.stop();$("mic").textContent="🎤 Activar escucha";$("mic").classList.remove("on");return}
- rec=new SR();rec.lang="es-ES";rec.continuous=true;rec.interimResults=false;
- rec.onresult=e=>{
-  const t=e.results[e.results.length-1][0].transcript;
-  $("heard").textContent="Oí: "+t;
-  const l=norm(t);
-  for(let p=0;p<N;p++){const k=norm(D.keys[p]||"");if(k&&l.includes(k)){go(p+1);return}}
-  for(const a of Object.keys(ACTS)){const k=norm(D.kw[a]||"");if(k&&l.includes(k)){act(a);return}}
-  const n=parse(t);if(n>=1&&n<=N)go(n);
- };
- rec.onend=()=>{if(on){try{rec.start()}catch(e){}}};
- rec.onerror=ev=>{if(ev.error==="not-allowed"){on=false;$("mic").textContent="🎤 Activar escucha";$("heard").textContent="Permiso de micrófono denegado."}};
- on=true;try{rec.start()}catch(e){}
- $("mic").textContent="🎙️ Escuchando… (toca para parar)";$("mic").classList.add("on");
-};
-buildRemote();buildEd();render();
+$("tap").onclick=()=>{if(D.mode==="touch"&&cur){rev=!rev;render()}};
+buildEd();render();
 </script></body></html>
