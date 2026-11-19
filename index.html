@@ -36,16 +36,20 @@ label{font-size:14px;color:var(--mut)}
 <div class="row" style="margin:10px 0"><button class="sm" id="ep">◀</button><select id="sel"></select><button class="sm" id="en">▶</button></div>
 <div id="fields"></div></details></div>
 
-<div class="card"><details><summary>⚙️ Ajustes</summary>
+<div class="card"><details open><summary>⚙️ Ajustes y botones</summary>
 <label>Pantalla</label><select id="mode"><option value="touch">Mostrar al tocar la pantalla</option><option value="always">Mostrar siempre</option><option value="hide">Oculta (solo audio)</option></select>
 <label><input type="checkbox" id="auto" checked> Decir en el auricular el número de página al llegar</label>
+<hr><b>Botones del control remoto</b><br><label>Elige qué hace cada botón y toca «Asignar tecla» para que la app aprenda la tecla de tu control.</label>
+<div id="cfg"></div><div id="lastkey" style="font-size:13px;color:var(--mut);margin-top:8px">Última tecla detectada: ninguna</div>
 </details></div>
 
 <script>
 const N=22,S=4;
-let D={pages:Array.from({length:N},()=>Array(S).fill("")),auto:true,mode:"touch"};
+const DB={U:{act:"multi",id:"ArrowUp"},L:{act:"rl",id:"ArrowLeft"},R:{act:"p10",id:"ArrowRight"},D:{act:"p5",id:"ArrowDown"}};
+let D={pages:Array.from({length:N},()=>Array(S).fill("")),auto:true,mode:"touch",btns:JSON.parse(JSON.stringify(DB))};
 try{const s=localStorage.getItem("blog22");if(s){const o=JSON.parse(s);if(o&&o.pages&&o.pages.length===N)D=Object.assign(D,o)}}catch(e){}
-if(!["always","touch","hide"].includes(D.mode))D.mode="touch";
+if(["always","touch","hide"].indexOf(D.mode)<0)D.mode="touch";
+if(!D.btns||!D.btns.U||!D.btns.L||!D.btns.R||!D.btns.D)D.btns=JSON.parse(JSON.stringify(DB));
 const save=()=>{try{localStorage.setItem("blog22",JSON.stringify(D))}catch(e){}};
 let cur=0,ed=1,rev=false;const $=i=>document.getElementById(i);
 function render(){
@@ -83,12 +87,39 @@ function tapLeft(){
 }
 function tapRight(){step(10)}
 function tapDown(){step(5)}
-$("bU").onclick=tapUp;$("bL").onclick=tapLeft;$("bR").onclick=tapRight;$("bD").onclick=tapDown;
+const SL=["U","L","R","D"],SN={U:"Arriba",L:"Izquierda",R:"Derecha",D:"Abajo"},SI={U:"▲",L:"◀",R:"▶",D:"▼"};
+const ACTS={
+ multi:["Páginas = nº de toques",tapUp],
+ rl:["1 toque repetir / 2 reiniciar",tapLeft],
+ p1:["+1 página",()=>step(1)],p5:["+5 páginas",()=>step(5)],p10:["+10 páginas",()=>step(10)],
+ b1:["−1 página",()=>step(-1)],b5:["−5 páginas",()=>step(-5)],b10:["−10 páginas",()=>step(-10)],
+ rep:["Repetir audio",repeat],res:["Reiniciar",restart]
+};
+function press(s){const a=ACTS[D.btns[s].act];if(a)a[1]()}
+function labels(){SL.forEach(s=>{$("b"+s).innerHTML=SI[s]+"<br>"+ACTS[D.btns[s].act][0]})}
+let learn=null;
+function buildCfg(){
+ const c=$("cfg");c.innerHTML="";
+ SL.forEach(s=>{
+  const w=document.createElement("div");w.style.marginTop="10px";w.innerHTML="<label>"+SI[s]+" "+SN[s]+"</label>";
+  const sel=document.createElement("select");
+  Object.keys(ACTS).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=ACTS[k][0];if(k===D.btns[s].act)o.selected=true;sel.appendChild(o)});
+  sel.onchange=()=>{D.btns[s].act=sel.value;save();labels()};
+  const b=document.createElement("button");b.className="sm";b.style.width="100%";
+  b.textContent=learn===s?"Pulsa ahora la tecla del control…":"Asignar tecla (actual: "+D.btns[s].id+")";
+  b.onclick=()=>{learn=learn===s?null:s;buildCfg()};
+  w.appendChild(sel);w.appendChild(b);c.appendChild(w);
+ });
+}
+const keyId=e=>e.code||e.key||("kc"+e.keyCode);
+SL.forEach(s=>{$("b"+s).onclick=()=>press(s)});
 document.addEventListener("keydown",e=>{
+ const id=keyId(e);
+ if(learn){e.preventDefault();D.btns[learn].id=id;save();learn=null;buildCfg();$("lastkey").textContent="Tecla asignada: "+id;return}
+ const t=e.target&&e.target.tagName;if(t==="INPUT"||t==="TEXTAREA"||t==="SELECT")return;
+ $("lastkey").textContent="Última tecla detectada: "+id+((e.key&&e.key!==id)?" ("+e.key+")":"");
  if(e.repeat)return;
- const t=e.target&&e.target.tagName;if(t==="INPUT"||t==="SELECT"||t==="TEXTAREA")return;
- const m={ArrowUp:tapUp,ArrowLeft:tapLeft,ArrowRight:tapRight,ArrowDown:tapDown}[e.key];
- if(m){e.preventDefault();m()}
+ for(const s of SL)if(D.btns[s].id===id){e.preventDefault();press(s);return}
 });
 function buildEd(){
  const sel=$("sel");
@@ -107,5 +138,5 @@ $("auto").checked=D.auto;$("mode").value=D.mode;
 $("auto").onchange=e=>{D.auto=e.target.checked;save()};
 $("mode").onchange=e=>{D.mode=e.target.value;rev=false;save();render()};
 $("tap").onclick=()=>{if(D.mode==="touch"&&cur){rev=!rev;render()}};
-buildEd();render();
+buildEd();render();labels();buildCfg();
 </script></body></html>
