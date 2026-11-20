@@ -82,20 +82,22 @@ function tapUp(){
  uT=setTimeout(()=>{const c=tU;tU=0;fb("");step(c)},650);
 }
 function tapLeft(){
- tL++;clearTimeout(lT);fb("Toques: "+tL);
- lT=setTimeout(()=>{const c=tL;tL=0;fb("");if(c>=2)restart();else repeat()},550);
+ if(lT){clearTimeout(lT);lT=0;fb("");restart();return}
+ fb("Toca otra vez para reiniciar");
+ lT=setTimeout(()=>{lT=0;fb("");repeat()},650);
 }
 function tapRight(){step(10)}
 function tapDown(){step(5)}
 const SL=["U","L","R","D"],SN={U:"Arriba",L:"Izquierda",R:"Derecha",D:"Abajo"},SI={U:"▲",L:"◀",R:"▶",D:"▼"};
 const ACTS={
- multi:["Páginas = nº de toques",tapUp],
+ multi:["+1 página por toque",()=>step(1)],
  rl:["1 toque repetir / 2 reiniciar",tapLeft],
  p1:["+1 página",()=>step(1)],p5:["+5 páginas",()=>step(5)],p10:["+10 páginas",()=>step(10)],
  b1:["−1 página",()=>step(-1)],b5:["−5 páginas",()=>step(-5)],b10:["−10 páginas",()=>step(-10)],
  rep:["Repetir audio",repeat],res:["Reiniciar",restart]
 };
-function press(s){const a=ACTS[D.btns[s].act];if(a)a[1]()}
+const LP={};
+function press(s){const n=Date.now();if(LP[s]&&n-LP[s]<100)return;LP[s]=n;const a=ACTS[D.btns[s].act];if(a)a[1]()}
 function labels(){SL.forEach(s=>{$("b"+s).innerHTML=SI[s]+"<br>"+ACTS[D.btns[s].act][0]})}
 let learn=null;
 function buildCfg(){
