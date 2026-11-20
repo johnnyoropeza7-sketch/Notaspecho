@@ -38,7 +38,7 @@ label{font-size:14px;color:var(--mut)}
 
 <div class="card"><details open><summary>⚙️ Ajustes y botones</summary>
 <label>Pantalla</label><select id="mode"><option value="touch">Mostrar al tocar la pantalla</option><option value="always">Mostrar siempre</option><option value="hide">Oculta (solo audio)</option></select>
-<label><input type="checkbox" id="auto" checked> Decir en el auricular el número de página al llegar</label>
+<label><input type="checkbox" id="auto" checked> Decir en el auricular el número de página y lo que hay en ella al llegar</label>
 <hr><b>Botones del control remoto</b><br><label>Elige qué hace cada botón y toca «Asignar tecla» para que la app aprenda la tecla de tu control.</label>
 <div id="cfg"></div><div id="lastkey" style="font-size:13px;color:var(--mut);margin-top:8px">Última tecla detectada: ninguna</div>
 </details></div>
@@ -72,7 +72,7 @@ function repeat(){
  const it=items();
  say("Página "+cur+". "+(it.length?it.join(". "):"En blanco"));
 }
-function go(n){cur=n;ed=n;rev=false;render();buildEd();if(D.auto)say("Página "+n)}
+function go(n){cur=n;ed=n;rev=false;render();buildEd();if(D.auto)repeat()}
 function step(k){go(((cur+k-1)%N+N)%N+1)}
 function restart(){cur=0;rev=false;if(window.speechSynthesis)speechSynthesis.cancel();render();say("Aplicación reiniciada")}
 function fb(t){$("fb").textContent=t}
@@ -97,7 +97,7 @@ const ACTS={
  rep:["Repetir audio",repeat],res:["Reiniciar",restart]
 };
 const LP={};
-function press(s){const n=Date.now();if(LP[s]&&n-LP[s]<100)return;LP[s]=n;const a=ACTS[D.btns[s].act];if(a)a[1]()}
+function press(s){const n=Date.now();if(LP[s]&&n-LP[s]<200)return;LP[s]=n;const a=ACTS[D.btns[s].act];if(a)a[1]()}
 function labels(){SL.forEach(s=>{$("b"+s).innerHTML=SI[s]+"<br>"+ACTS[D.btns[s].act][0]})}
 let learn=null;
 function buildCfg(){
@@ -119,9 +119,9 @@ document.addEventListener("keydown",e=>{
  const id=keyId(e);
  if(learn){e.preventDefault();D.btns[learn].id=id;save();learn=null;buildCfg();$("lastkey").textContent="Tecla asignada: "+id;return}
  const t=e.target&&e.target.tagName;if((t==="INPUT"&&e.target.type==="text")||t==="TEXTAREA")return;
- $("lastkey").textContent="Última tecla detectada: "+id+((e.key&&e.key!==id)?" ("+e.key+")":"");
- if(e.repeat)return;
- for(const s of SL)if(D.btns[s].id===id){e.preventDefault();press(s);return}
+ let hit=null;for(const s of SL)if(D.btns[s].id===id){hit=s;break}
+ $("lastkey").textContent="Última tecla detectada: "+id+(hit?" → botón "+SN[hit]+" ("+ACTS[D.btns[hit].act][0]+")":" → sin asignar");
+ if(hit){e.preventDefault();press(hit)}
 });
 function buildEd(){
  const sel=$("sel");
@@ -143,8 +143,9 @@ $("tap").onclick=()=>{if(D.mode==="touch"&&cur){rev=!rev;render()}};
 function mediaKey(name){
  const id="media:"+name;
  if(learn){D.btns[learn].id=id;save();learn=null;buildCfg();$("lastkey").textContent="Tecla asignada: "+id;return}
- $("lastkey").textContent="Última tecla detectada: "+id;
- for(const s of SL)if(D.btns[s].id===id){press(s);return}
+ let hit=null;for(const s of SL)if(D.btns[s].id===id){hit=s;break}
+ $("lastkey").textContent="Última tecla detectada: "+id+(hit?" → botón "+SN[hit]+" ("+ACTS[D.btns[hit].act][0]+")":" → sin asignar");
+ if(hit)press(hit);
 }
 function silentWav(){const sr=8000,n=sr;const b=new Uint8Array(44+n);const dv=new DataView(b.buffer);const w=(o,s)=>{for(let i=0;i<s.length;i++)b[o+i]=s.charCodeAt(i)};w(0,"RIFF");dv.setUint32(4,36+n,true);w(8,"WAVEfmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);dv.setUint32(24,sr,true);dv.setUint32(28,sr,true);dv.setUint16(32,1,true);dv.setUint16(34,8,true);w(36,"data");dv.setUint32(40,n,true);b.fill(128,44);let s="";for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return "data:audio/wav;base64,"+btoa(s)}
 let aud=null;
